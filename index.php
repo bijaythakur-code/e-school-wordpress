@@ -106,6 +106,18 @@ get_header();
       </div>
     </div>
   </section>
+
+  <?php
+
+  $results = wp_remote_retrieve_body(wp_remote_get('https://api.openbrewerydb.org/breweries?page=' . $current_page . '&per_page=50'));
+
+  echo '<pre>';
+
+  print_r($results);
+
+  echo '</pre>';
+
+  ?>
 </main>
 
 <?php get_footer(); ?>
