@@ -43,7 +43,9 @@ function eschool_features()
 
 add_action('after_setup_theme', 'eschool_features');
 
-
+if (!wp_next_scheduled('update_brewery_list')) {
+  wp_schedule_event(time(), 'weekly', 'update_brewery_list');
+}
 add_action('wp_ajax_nopriv_get_breweries_from_api', 'get_breweries_from_api');
 add_action('wp_ajax_get_breweries_from_api', 'get_breweries_from_api');
 
@@ -51,7 +53,7 @@ add_action('wp_ajax_get_breweries_from_api', 'get_breweries_from_api');
 function get_breweries_from_api()
 {
 
-  $file = get_stylesheet_directory() . '/report.txt';
+  // $file = get_stylesheet_directory() . '/report.txt';
 
   $current_page = (!empty($_POST['current_page'])) ? $_POST['current_page'] : 1;
   $breweries = [];
@@ -59,7 +61,7 @@ function get_breweries_from_api()
   // Should return an array of objects
   $results = wp_remote_retrieve_body(wp_remote_get('https://api.openbrewerydb.org/breweries?page=' . $current_page . '&per_page=50'));
 
-  file_put_contents($file, "Current Page: " . $current_page . "\n\n", FILE_APPEND);
+  // file_put_contents($file, "Current Page: " . $current_page . "\n\n", FILE_APPEND);
 
   // turn it into a PHP array from JSON string
   $results = json_decode($results);
@@ -75,35 +77,65 @@ function get_breweries_from_api()
 
     $brewery_slug = sanitize_title($brewery->name . '-' . $brewery->id);
 
-    $inserted_brewery = wp_insert_post([
-      'post_name' => $brewery_slug,
-      'post_title' => $brewery_slug,
-      'post_type' => 'brewery',
-      'post_status' => 'publish'
-    ]);
+    $existing_brewery = get_page_by_path($brewery_slug, 'OBJECT', 'brewery');
 
-    if (is_wp_error($inserted_brewery)) {
-      continue;
-    }
+    if ($existing_brewery === null) {
+      $inserted_brewery = wp_insert_post([
+        'post_name' => $brewery_slug,
+        'post_title' => $brewery_slug,
+        'post_type' => 'brewery',
+        'post_status' => 'publish'
+      ]);
 
-    // add meta fields
-    $fillable = [
-      'field_631d76d550903' => 'name',
-      'field_631d76f750904' => 'brewery_type',
-      'field_631d771c50905' => 'street',
-      'field_631d772950906' => 'city',
-      'field_631d773250907' => 'state',
-      'field_631d774950908' => 'postal_code',
-      'field_631d775850909' => 'country',
-      'field_631d77695090a' => 'longitude',
-      'field_631d777c5090b' => 'latitude',
-      'field_631d77895090c' => 'phone',
-      'field_631d77925090d' => 'website',
-      'field_631d77aa5090e' => 'updated_at',
-    ];
+      if (is_wp_error($inserted_brewery)) {
+        continue;
+      }
 
-    foreach ($fillable as $key => $name) {
-      update_field($key, $brewery->$name, $inserted_brewery);
+      // add meta fields
+      $fillable = [
+        'field_631d76d550903' => 'name',
+        'field_631d76f750904' => 'brewery_type',
+        'field_631d771c50905' => 'street',
+        'field_631d772950906' => 'city',
+        'field_631d773250907' => 'state',
+        'field_631d774950908' => 'postal_code',
+        'field_631d775850909' => 'country',
+        'field_631d77695090a' => 'longitude',
+        'field_631d777c5090b' => 'latitude',
+        'field_631d77895090c' => 'phone',
+        'field_631d77925090d' => 'website',
+        'field_631d77aa5090e' => 'updated_at',
+      ];
+
+      foreach ($fillable as $key => $name) {
+        update_field($key, $brewery->$name, $inserted_brewery);
+      }
+    } else {
+      $existing_brewery_id = $existing_brewery->ID;
+      $existing_brewery_timestamp = get_field('updated_at', $existing_brewery_id);
+
+      if ($brewery->updated_at >= $existing_brewery_timestamp) {
+        // update our post meta
+        // add meta fields
+        $fillable = [
+          'field_631d76d550903' => 'name',
+          'field_631d76f750904' => 'brewery_type',
+          'field_631d771c50905' => 'street',
+          'field_631d772950906' => 'city',
+          'field_631d773250907' => 'state',
+          'field_631d774950908' => 'postal_code',
+          'field_631d775850909' => 'country',
+          'field_631d77695090a' => 'longitude',
+          'field_631d777c5090b' => 'latitude',
+          'field_631d77895090c' => 'phone',
+          'field_631d77925090d' => 'website',
+          'field_631d77aa5090e' => 'updated_at',
+        ];
+
+        foreach ($fillable as $key => $name) {
+          update_field($key, $brewery->$name, $existing_brewery_id);
+        }
+      }
     }
   }
 
@@ -116,25 +148,3 @@ function get_breweries_from_api()
     ]
   ]);
 }
-
-// function slugify($text)
-// {
-
-//   // remove unwanted characters
-//   $text = preg_replace('~[^-\w]+~', '', $text);
-
-//   // trim
-//   $text = trim($text, '-');
-
-//   // remove duplicate -
-//   $text = preg_replace('~-+~', '-', $text);
-
-//   // lowercase
-//   $text = strtolower($text);
-
-//   if (empty($text)) {
-//     return 'n-a';
-//   }
-
-//   return $text;
-// }
