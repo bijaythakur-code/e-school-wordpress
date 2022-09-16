@@ -109,13 +109,13 @@ get_header();
 
   <?php
 
-  $results = wp_remote_retrieve_body(wp_remote_get('https://api.openbrewerydb.org/breweries?page=' . $current_page . '&per_page=50'));
+  // $results = wp_remote_retrieve_body(wp_remote_get('https://api.openbrewerydb.org/breweries?page=' . $current_page . '&per_page=50'));
 
-  echo '<pre>';
+  // echo '<pre>';
 
-  print_r($results);
+  // print_r($results);
 
-  echo '</pre>';
+  // echo '</pre>';
 
   ?>
 </main>
